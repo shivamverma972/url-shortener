@@ -1,0 +1,24 @@
+# Compiled files
+target/
+
+# Eclipse files
+.classpath
+.project
+.settings/
+.metadata/
+
+# IntelliJ files
+.idea/
+*.iml
+
+# Environment and secrets
+application-prod.yml
+*.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
