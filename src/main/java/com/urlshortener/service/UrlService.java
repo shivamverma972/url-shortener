@@ -6,58 +6,76 @@ import com.urlshortener.model.Url;
 import com.urlshortener.repository.UrlRepository;
 import com.urlshortener.util.ShortCodeGenerator;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Service  // tells Spring this is a service layer bean
+@Service
 public class UrlService {
 
     private final UrlRepository urlRepository;
     private final ShortCodeGenerator shortCodeGenerator;
+    private final RedisTemplate<String, String> redisTemplate;
 
-    // reads app.base-url from application.yml
     @Value("${app.base-url}")
     private String baseUrl;
 
-    // Constructor injection — best practice over @Autowired
+    private static final String CACHE_PREFIX = "url:";
+
     public UrlService(UrlRepository urlRepository,
-                      ShortCodeGenerator shortCodeGenerator) {
+                      ShortCodeGenerator shortCodeGenerator,
+                      RedisTemplate<String, String> redisTemplate) {
         this.urlRepository = urlRepository;
         this.shortCodeGenerator = shortCodeGenerator;
+        this.redisTemplate = redisTemplate;
     }
 
-    // ─── CREATE SHORT URL ────────────────────────────────────────────
     public UrlResponse createShortUrl(CreateUrlRequest request) {
-
-        // Generate a unique short code
         String shortCode = generateUniqueCode();
 
-        // Build and save the Url entity
         Url url = new Url();
         url.setOriginalUrl(request.getOriginalUrl());
         url.setShortCode(shortCode);
 
         Url savedUrl = urlRepository.save(url);
 
+        redisTemplate.opsForValue().set(
+                CACHE_PREFIX + shortCode,
+                request.getOriginalUrl(),
+                Duration.ofHours(24)   
+        );
+
         return mapToResponse(savedUrl);
     }
 
-    // ─── GET ORIGINAL URL FOR REDIRECT ──────────────────────────────
     public String getOriginalUrl(String shortCode) {
+
+        String cachedUrl = redisTemplate.opsForValue()
+                .get(CACHE_PREFIX + shortCode);
+
+        if (cachedUrl != null) {
+            updateClickCountAsync(shortCode);
+            return cachedUrl;
+        }
         Url url = urlRepository.findByShortCode(shortCode)
                 .orElseThrow(() ->
-                    new RuntimeException("Short URL not found: " + shortCode));
+                        new RuntimeException("Short URL not found: "
+                                + shortCode));
 
-        // Increment click count every time someone visits
+        redisTemplate.opsForValue().set(
+                CACHE_PREFIX + shortCode,
+                url.getOriginalUrl(),
+                Duration.ofHours(24)
+        );
+
         url.setClickCount(url.getClickCount() + 1);
         urlRepository.save(url);
 
         return url.getOriginalUrl();
     }
-
-    // ─── GET ALL URLs ────────────────────────────────────────────────
     public List<UrlResponse> getAllUrls() {
         return urlRepository.findAll()
                 .stream()
@@ -65,18 +83,17 @@ public class UrlService {
                 .collect(Collectors.toList());
     }
 
-    // ─── DELETE URL ──────────────────────────────────────────────────
     public void deleteUrl(Long id) {
         Url url = urlRepository.findById(id)
                 .orElseThrow(() ->
-                    new RuntimeException("URL not found with id: " + id));
-        url.setIsActive(false);   // soft delete
+                        new RuntimeException("URL not found: " + id));
+
+        url.setIsActive(false);
         urlRepository.save(url);
+
+        redisTemplate.delete(CACHE_PREFIX + url.getShortCode());
     }
 
-    // ─── PRIVATE HELPERS ─────────────────────────────────────────────
-
-    // Keeps generating codes until we find one that doesn't exist
     private String generateUniqueCode() {
         String code;
         do {
@@ -85,12 +102,18 @@ public class UrlService {
         return code;
     }
 
-    // Converts a Url entity into a UrlResponse DTO
+    private void updateClickCountAsync(String shortCode) {
+        urlRepository.findByShortCode(shortCode).ifPresent(url -> {
+            url.setClickCount(url.getClickCount() + 1);
+            urlRepository.save(url);
+        });
+    }
+
     private UrlResponse mapToResponse(Url url) {
         return new UrlResponse(
                 url.getId(),
                 url.getOriginalUrl(),
-                baseUrl + "/" + url.getShortCode(),  // full short URL
+                baseUrl + "/" + url.getShortCode(),
                 url.getShortCode(),
                 url.getClickCount(),
                 url.getCreatedAt()
