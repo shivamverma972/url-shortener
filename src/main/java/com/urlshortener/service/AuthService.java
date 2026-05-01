@@ -11,6 +11,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.urlshortener.exception.DuplicateEmailException;
+import com.urlshortener.exception.ResourceNotFoundException;
 
 @Service
 public class AuthService {
@@ -30,15 +32,13 @@ public class AuthService {
         this.authenticationManager = authenticationManager;
     }
 
-    // ─── REGISTER ────────────────────────────────────────────────────
     public AuthResponse register(RegisterRequest request) {
 
-        // Check if email already exists
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already registered");
+            throw new DuplicateEmailException("Email already registered: "
+        + request.getEmail());
         }
 
-        // Build user with hashed password
         User user = new User();
         user.setName(request.getName());
         user.setEmail(request.getEmail());
@@ -46,7 +46,6 @@ public class AuthService {
 
         userRepository.save(user);
 
-        // Generate token for immediate login after registration
         UserDetails userDetails =
                 org.springframework.security.core.userdetails.User.builder()
                         .username(user.getEmail())
@@ -58,11 +57,8 @@ public class AuthService {
 
         return new AuthResponse(token, user.getEmail(), user.getName());
     }
-
-    // ─── LOGIN ───────────────────────────────────────────────────────
     public AuthResponse login(LoginRequest request) {
 
-        // This throws an exception if credentials are wrong
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getEmail(),
@@ -70,10 +66,10 @@ public class AuthService {
                 )
         );
 
-        // If we reach here — credentials are valid
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+    new ResourceNotFoundException("User not found with email: "
+            + request.getEmail()));
 
         UserDetails userDetails =
                 org.springframework.security.core.userdetails.User.builder()

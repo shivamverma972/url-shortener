@@ -1,5 +1,6 @@
 package com.urlshortener.service;
 
+
 import com.urlshortener.dto.request.CreateUrlRequest;
 import com.urlshortener.dto.response.UrlResponse;
 import com.urlshortener.model.Url;
@@ -8,6 +9,7 @@ import com.urlshortener.util.ShortCodeGenerator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import com.urlshortener.exception.ResourceNotFoundException;
 
 import java.time.Duration;
 import java.util.List;
@@ -62,7 +64,7 @@ public class UrlService {
         }
         Url url = urlRepository.findByShortCode(shortCode)
                 .orElseThrow(() ->
-                        new RuntimeException("Short URL not found: "
+                        new ResourceNotFoundException("Short URL not found: "
                                 + shortCode));
 
         redisTemplate.opsForValue().set(
@@ -86,7 +88,7 @@ public class UrlService {
     public void deleteUrl(Long id) {
         Url url = urlRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException("URL not found: " + id));
+                        new ResourceNotFoundException("URL not found: " + id));
 
         url.setIsActive(false);
         urlRepository.save(url);
