@@ -6,12 +6,11 @@ public class UrlResponse {
 
     private Long id;
     private String originalUrl;
-    private String shortUrl;       // full URL e.g. http://localhost:8080/abc123
-    private String shortCode;      // just the code e.g. abc123
+    private String shortUrl;       
+    private String shortCode;     
     private Long clickCount;
     private LocalDateTime createdAt;
 
-    // Constructor
     public UrlResponse(Long id, String originalUrl, String shortUrl,
                        String shortCode, Long clickCount, LocalDateTime createdAt) {
         this.id = id;
@@ -22,7 +21,6 @@ public class UrlResponse {
         this.createdAt = createdAt;
     }
 
-    // Getters
     public Long getId() { return id; }
     public String getOriginalUrl() { return originalUrl; }
     public String getShortUrl() { return shortUrl; }
