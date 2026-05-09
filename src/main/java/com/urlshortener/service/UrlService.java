@@ -121,7 +121,7 @@ public class UrlService {
         return new UrlResponse(
                 url.getId(),
                 url.getOriginalUrl(),
-                baseUrl + "/" + url.getShortCode(),
+                baseUrl + "/r/" + url.getShortCode(),
                 url.getShortCode(),
                 url.getClickCount(),
                 url.getCreatedAt()
