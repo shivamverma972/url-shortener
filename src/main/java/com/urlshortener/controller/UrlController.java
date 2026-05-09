@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.net.URI;
 import java.util.List;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 
 @RestController
 @SecurityRequirement(name = "bearerAuth")
@@ -23,8 +25,10 @@ public class UrlController {
 
     @PostMapping("/api/urls")
     public ResponseEntity<UrlResponse> createShortUrl(
-            @Valid @RequestBody CreateUrlRequest request) {
-        UrlResponse response = urlService.createShortUrl(request);
+            @Valid @RequestBody CreateUrlRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UrlResponse response = urlService.createShortUrl(
+                request, userDetails.getUsername());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -46,4 +50,13 @@ public class UrlController {
         urlService.deleteUrl(id);
         return ResponseEntity.noContent().build();
     }
+    
+    @GetMapping("/api/urls/my")
+    public ResponseEntity<List<UrlResponse>> getMyUrls(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(
+                urlService.getMyUrls(userDetails.getUsername()));
+    }
+    
+    
 }
