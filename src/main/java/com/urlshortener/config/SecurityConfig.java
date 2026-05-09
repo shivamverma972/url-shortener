@@ -35,17 +35,20 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                    "/api/auth/**",
-                    "/swagger-ui/**",
-                    "/swagger-ui.html",
-                    "/api-docs/**",
-                    "/h2-console/**"
-                ).permitAll()
-                
-                .requestMatchers("/{shortCode}").permitAll()
-               
-                .anyRequest().authenticated()
+            	    .requestMatchers(
+            	        "/",
+            	        "/index.html",
+            	        "/login.html",
+            	        "/dashboard.html",
+            	        "/style.css",
+            	        "/app.js",
+            	        "/api/auth/**",
+            	        "/swagger-ui/**",
+            	        "/swagger-ui.html",
+            	        "/api-docs/**"
+            	    ).permitAll()
+            	    .requestMatchers("/{shortCode}").permitAll()
+            	    .anyRequest().authenticated()
             )
             
             .sessionManagement(session -> session
